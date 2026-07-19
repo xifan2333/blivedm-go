@@ -69,26 +69,6 @@ type HotRankSettlementV2 struct {
 	DmMsg     string `json:"dm_msg"`
 }
 
-// InteractWord msg_type: 1进入 2关注 3分享 4特别关注 5互粉 6点赞
-const (
-	InteractMsgTypeEnter         = 1
-	InteractMsgTypeFollow        = 2
-	InteractMsgTypeShare         = 3
-	InteractMsgTypeSpecialFollow = 4
-	InteractMsgTypeMutualFollow  = 5
-	InteractMsgTypeLike          = 6
-)
-
-// InteractWord is INTERACT_WORD_V2 (data.pb base64 protobuf).
-// API name kept for drop-in use; payload is current protocol only.
-type InteractWord struct {
-	Uid       int    `json:"uid"`
-	Uname     string `json:"uname"`
-	Face      string `json:"face"`
-	MsgType   int    `json:"msg_type"`
-	Timestamp int    `json:"timestamp"`
-}
-
 type OnlineRankCount struct {
 	Count int `json:"count"`
 }
