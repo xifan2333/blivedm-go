@@ -3,10 +3,10 @@ package main
 import (
 	"fmt"
 
-	"github.com/Akegarasu/blivedm-go/api"
-	"github.com/Akegarasu/blivedm-go/client"
-	"github.com/Akegarasu/blivedm-go/message"
-	_ "github.com/Akegarasu/blivedm-go/utils"
+	"github.com/xifan2333/blivedm-go/api"
+	"github.com/xifan2333/blivedm-go/client"
+	"github.com/xifan2333/blivedm-go/message"
+	_ "github.com/xifan2333/blivedm-go/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/tidwall/gjson"
 )
@@ -36,6 +36,23 @@ func main() {
 	// 上舰事件
 	c.OnGuardBuy(func(guardBuy *message.GuardBuy) {
 		fmt.Printf("[大航海] %s 开通了 %d 等级的大航海，金额 %d 元\n", guardBuy.Username, guardBuy.GuardLevel, guardBuy.Price/1000)
+	})
+	// 新版进房/关注/分享/点赞（INTERACT_WORD_V2）
+	c.OnInteractWordV2(func(w *message.InteractWordV2) {
+		switch w.MsgType {
+		case message.InteractMsgTypeEnter:
+			fmt.Printf("[进房] %s face=%s\n", w.Uname, w.Face)
+		case message.InteractMsgTypeFollow:
+			fmt.Printf("[关注] %s\n", w.Uname)
+		case message.InteractMsgTypeLike:
+			fmt.Printf("[点赞] %s\n", w.Uname)
+		default:
+			fmt.Printf("[互动:%d] %s\n", w.MsgType, w.Uname)
+		}
+	})
+	// 旧版 INTERACT_WORD（如仍下发）
+	c.OnInteractWord(func(w *message.InteractWord) {
+		fmt.Printf("[互动旧:%d] %s\n", w.MsgType, w.Uname)
 	})
 	// 监听自定义事件
 	c.RegisterCustomEventHandler("STOP_LIVE_ROOM_LIST", func(s string) {

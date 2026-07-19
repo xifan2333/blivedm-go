@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package pb;
+
+option go_package = "github.com/xifan2333/blivedm-go/pb";
+
+// InteractWordV2 is the protobuf payload inside INTERACT_WORD_V2.data.pb (base64).
+// Field numbers follow bilibili live protocol / blivedm (Python) reference.
+message InteractWordV2UserBaseInfo {
+  string face = 2;
+}
+
+message InteractWordV2UserInfo {
+  InteractWordV2UserBaseInfo base = 2;
+}
+
+message InteractWordV2 {
+  int64 uid = 1;
+  string uname = 2;
+  // 1=enter, 2=follow, 3=share, 4=special follow, 5=mutual, 6=like
+  int32 msg_type = 5;
+  int64 timestamp = 7;
+  InteractWordV2UserInfo uinfo = 22;
+}
