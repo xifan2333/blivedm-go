@@ -78,3 +78,20 @@ func (s *SuperChat) Parse(data []byte) {
 		log.Error("parse superchat failed")
 	}
 }
+
+// SuperChatDelete is SUPER_CHAT_MESSAGE_DELETE.
+type SuperChatDelete struct {
+	Ids []int `json:"ids"`
+}
+
+func (s *SuperChatDelete) Parse(data []byte) {
+	arr := gjson.GetBytes(data, "data.ids")
+	if !arr.IsArray() {
+		log.Error("parse SuperChatDelete failed")
+		return
+	}
+	s.Ids = make([]int, 0, len(arr.Array()))
+	for _, v := range arr.Array() {
+		s.Ids = append(s.Ids, int(v.Int()))
+	}
+}

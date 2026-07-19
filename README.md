@@ -1,17 +1,14 @@
 # blivedm-go
 
-bilibili 直播弹幕 golang 库
+bilibili 直播弹幕 golang 库（fork：对齐当前 web 协议）
 
 ## 安装
+
 ```shell
-go get github.com/xifan2333/blivedm-go
+go get github.com/xifan2333/blivedm-go@v1.7.1
 ```
 
-## 快速开始
-
-### 基础使用
-
-该库支持以下 web 直播间一等事件（对齐 [xfgryujk/blivedm](https://github.com/xfgryujk/blivedm) web BaseHandler 能力），并支持 `RegisterCustomEventHandler` 监听任意 CMD。
+## 一等事件
 
 | CMD | API |
 | --- | --- |
@@ -20,102 +17,22 @@ go get github.com/xifan2333/blivedm-go
 | `SUPER_CHAT_MESSAGE` | `OnSuperChat` |
 | `SUPER_CHAT_MESSAGE_DELETE` | `OnSuperChatDelete` |
 | `GUARD_BUY` | `OnGuardBuy` |
-| `USER_TOAST_MSG` | `OnUserToast` |
-| `USER_TOAST_MSG_V2` | `OnUserToastV2` |
-| `INTERACT_WORD` | `OnInteractWord`（旧 JSON） |
-| `INTERACT_WORD_V2` | `OnInteractWordV2`（protobuf，进房/关注/分享/点赞） |
-| `LIKE_INFO_V3_CLICK` | `OnLikeClick` |
+| `USER_TOAST_MSG_V2` | `OnUserToast` |
+| `INTERACT_WORD_V2` | `OnInteractWord`（`data.pb` protobuf） |
 | `LIVE` / `PREPARING` | `OnLiveStart` / `OnLiveStop` |
 
-开放平台 `LIVE_OPEN_PLATFORM_*` 未做 typed model，请用自定义 handler。
+其它 CMD：`RegisterCustomEventHandler`。
 
-```go
-package main
+旧 `INTERACT_WORD` / `USER_TOAST_MSG` 不再解析，仅静默忽略。
 
-import (
-	"fmt"
-	"github.com/xifan2333/blivedm-go/client"
-	"github.com/xifan2333/blivedm-go/message"
-	_ "github.com/xifan2333/blivedm-go/utils"
-	log "github.com/sirupsen/logrus"
-	"github.com/tidwall/gjson"
-)
+## 快速开始
 
-func main() {
-	log.SetLevel(log.DebugLevel)
-	c := client.NewClient(732) // 房间号
-	c.SetCookie("") // 由于 B站 反爬虫改版，现在需要使用已登陆账号的 Cookie 才可以正常获取弹幕。如果不设置 Cookie，获取到的弹幕昵称、UID都被限制。还有可能弹幕限流，无法获取到全部内容。
-	//弹幕事件
-	c.OnDanmaku(func(danmaku *message.Danmaku) {
-		if danmaku.Type == message.EmoticonDanmaku {
-			fmt.Printf("[弹幕表情] %s：表情URL： %s\n", danmaku.Sender.Uname, danmaku.Emoticon.Url)
-		} else {
-			fmt.Printf("[弹幕] %s：%s\n", danmaku.Sender.Uname, danmaku.Content)
-		}
-	})
-	// 醒目留言事件
-	c.OnSuperChat(func(superChat *message.SuperChat) {
-		fmt.Printf("[SC|%d元] %s: %s\n", superChat.Price, superChat.UserInfo.Uname, superChat.Message)
-	})
-	// 礼物事件
-	c.OnGift(func(gift *message.Gift) {
-		if gift.CoinType == "gold" {
-			fmt.Printf("[礼物] %s 的 %s %d 个 共%.2f元\n", gift.Uname, gift.GiftName, gift.Num, float64(gift.Num*gift.Price)/1000)
-		}
-	})
-	// 上舰事件
-	c.OnGuardBuy(func(guardBuy *message.GuardBuy) {
-		fmt.Printf("[大航海] %s 开通了 %d 等级的大航海，金额 %d 元\n", guardBuy.Username, guardBuy.GuardLevel, guardBuy.Price/1000)
-	})
-	// 监听自定义事件
-	c.RegisterCustomEventHandler("STOP_LIVE_ROOM_LIST", func(s string) {
-		data := gjson.Get(s, "data").String()
-		fmt.Printf("STOP_LIVE_ROOM_LIST: %s\n", data)
-	})
+见 `example/main.go`。
 
-	err := c.Start()
-	if err != nil {
-		log.Fatal(err)
-	}
-	log.Println("started")
-	// 需要自行阻塞什么方法都可以
-	select {}
-}
+### Cookie
 
-```
+必要 cookie：`buvid3`, `SESSDATA`, `bili_jct`。
 
-#### Cookie相关
+## 参考
 
-截至2025年06月25日，必要的cookie为`buvid3`, `SESSDATA`, `bili_jct`
-
-### 进阶使用
-
-#### 监听自定义事件
-
-通过自定义监听事件，可以支持更多事件处理。  
-其中，`cmd`为要监听的`cmd`名（下附常见`cmd`名）， `handler`为接收事件消息（字符串的JSON）的函数  
-**注意**  
-优先执行自定义 eventHandler ，会**覆盖库内自带的 handler**  
-例如，如果你`RegisterCustomEventHandler("DANMU_MSG", ...`  
-那么你使用`OnDanmaku`则不会再生效
-```go
-func (c *Client) RegisterCustomEventHandler(cmd string, handler func(s string))
-```
-```go
-// 监听自定义事件
-c.RegisterCustomEventHandler("STOP_LIVE_ROOM_LIST", func(s string) {
-    data := gjson.Get(s, "data").String()
-    fmt.Printf(data)
-})
-```
-
-### 常见 CMD
-注：来自blivedm
-```python
-cmd = (
-        'INTERACT_WORD', 'ROOM_BANNER', 'ROOM_REAL_TIME_MESSAGE_UPDATE', 'NOTICE_MSG', 'COMBO_SEND',
-        'COMBO_END', 'ENTRY_EFFECT', 'WELCOME_GUARD', 'WELCOME', 'ROOM_RANK', 'ACTIVITY_BANNER_UPDATE_V2',
-        'PANEL', 'SUPER_CHAT_MESSAGE_JPN', 'USER_TOAST_MSG', 'ROOM_BLOCK_MSG', 'LIVE', 'PREPARING',
-        'room_admin_entrance', 'ROOM_ADMINS', 'ROOM_CHANGE'
-    )
-```
+协议消息模型对齐 [xfgryujk/blivedm](https://github.com/xfgryujk/blivedm) web 侧当前实现。

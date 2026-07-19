@@ -11,18 +11,11 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// knownCMD lists CMDs that are expected on the web live danmaku stream.
-// Unknown CMDs outside this set are logged at debug level.
-// Aligned with common bilibili live CMDs; first-class typed handlers cover the
-// subset that xfgryujk/blivedm web BaseHandler implements.
 var (
 	knownCMD = []string{
-		// first-class (typed handlers)
 		"DANMU_MSG", "SEND_GIFT", "SUPER_CHAT_MESSAGE", "SUPER_CHAT_MESSAGE_DELETE",
-		"GUARD_BUY", "USER_TOAST_MSG", "USER_TOAST_MSG_V2",
-		"INTERACT_WORD", "INTERACT_WORD_V2", "LIKE_INFO_V3_CLICK",
+		"GUARD_BUY", "USER_TOAST_MSG_V2", "INTERACT_WORD_V2", "LIKE_INFO_V3_CLICK",
 		"LIVE", "PREPARING",
-		// known / ignored without typed model
 		"HOT_RANK_SETTLEMENT", "DANMU_GIFT_LOTTERY_START", "WELCOME_GUARD", "PK_PROCESS",
 		"PK_BATTLE_PRO_TYPE", "MATCH_TEAM_GIFT_RANK", "PK_BATTLE_CRIT", "LUCK_GIFT_AWARD_USER",
 		"SCORE_CARD", "ONLINE_RANK_V2", "PK_BATTLE_SPECIAL_GIFT", "SEND_TOP", "SUPER_CHAT_MESSAGE_JPN",
@@ -55,29 +48,23 @@ var (
 		"RANK_REM", "LIVE_PLAYER_LOG_RECYCLE", "LIVE_INTERNAL_ROOM_LOGIN", "LIVE_OPEN_PLATFORM_GAME",
 		"WATCHED_CHANGE", "DANMU_AGGREGATION", "POPULARITY_RED_POCKET_NEW", "POPULAR_RANK_CHANGED",
 		"DM_INTERACTION", "LIKE_INFO_V3_UPDATE", "HOT_ROOM_NOTIFY", "PLAY_TAG", "OTHER_SLICE_LOADING_RESULT",
-		// open-live cmds (not typed here; use RegisterCustomEventHandler)
-		"LIVE_OPEN_PLATFORM_DM", "LIVE_OPEN_PLATFORM_DM_MIRROR", "LIVE_OPEN_PLATFORM_SEND_GIFT",
-		"LIVE_OPEN_PLATFORM_GUARD", "LIVE_OPEN_PLATFORM_SUPER_CHAT", "LIVE_OPEN_PLATFORM_SUPER_CHAT_DEL",
-		"LIVE_OPEN_PLATFORM_LIKE", "LIVE_OPEN_PLATFORM_LIVE_ROOM_ENTER", "LIVE_OPEN_PLATFORM_LIVE_START",
-		"LIVE_OPEN_PLATFORM_LIVE_END", "LIVE_OPEN_PLATFORM_INTERACTION_END",
+		// legacy CMDs still appear occasionally; silence without handlers
+		"INTERACT_WORD", "USER_TOAST_MSG",
 	}
 	knownCMDMap map[string]int
 	cmdReg      = regexp.MustCompile(`"cmd":"([^"]+)"`)
 )
 
 type eventHandlers struct {
-	danmakuMessageHandlers []func(*message.Danmaku)
-	superChatHandlers      []func(*message.SuperChat)
+	danmakuMessageHandlers  []func(*message.Danmaku)
+	superChatHandlers       []func(*message.SuperChat)
 	superChatDeleteHandlers []func(*message.SuperChatDelete)
-	giftHandlers           []func(*message.Gift)
-	guardBuyHandlers       []func(*message.GuardBuy)
-	liveStartHandlers      []func(start *message.LiveStart)
-	liveStopHandlers       []func(start *message.LiveStop)
-	userToastHandlers      []func(*message.UserToast)
-	userToastV2Handlers    []func(*message.UserToastV2)
-	interactWordHandlers   []func(*message.InteractWord)
-	interactWordV2Handlers []func(*message.InteractWordV2)
-	likeClickHandlers      []func(*message.LikeInfoV3Click)
+	giftHandlers            []func(*message.Gift)
+	guardBuyHandlers        []func(*message.GuardBuy)
+	liveStartHandlers       []func(start *message.LiveStart)
+	liveStopHandlers        []func(start *message.LiveStop)
+	userToastHandlers       []func(*message.UserToast)
+	interactWordHandlers    []func(*message.InteractWord)
 }
 
 type customEventHandlers map[string]func(s string)
@@ -89,83 +76,57 @@ func init() {
 	}
 }
 
-// RegisterCustomEventHandler 注册自定义事件处理器。
-// 若 cmd 与内置 typed handler 相同，自定义 handler 会覆盖内置逻辑。
+// RegisterCustomEventHandler 注册自定义事件处理器（会覆盖同名内置 handler）
 func (c *Client) RegisterCustomEventHandler(cmd string, handler func(s string)) {
 	(*c.customEventHandlers)[cmd] = handler
 }
 
-// OnDanmaku 弹幕 DANMU_MSG
 func (c *Client) OnDanmaku(f func(*message.Danmaku)) {
 	c.eventHandlers.danmakuMessageHandlers = append(c.eventHandlers.danmakuMessageHandlers, f)
 }
 
-// OnSuperChat 醒目留言 SUPER_CHAT_MESSAGE
 func (c *Client) OnSuperChat(f func(*message.SuperChat)) {
 	c.eventHandlers.superChatHandlers = append(c.eventHandlers.superChatHandlers, f)
 }
 
-// OnSuperChatDelete 删除醒目留言 SUPER_CHAT_MESSAGE_DELETE
 func (c *Client) OnSuperChatDelete(f func(*message.SuperChatDelete)) {
 	c.eventHandlers.superChatDeleteHandlers = append(c.eventHandlers.superChatDeleteHandlers, f)
 }
 
-// OnGift 礼物 SEND_GIFT
 func (c *Client) OnGift(f func(gift *message.Gift)) {
 	c.eventHandlers.giftHandlers = append(c.eventHandlers.giftHandlers, f)
 }
 
-// OnGuardBuy 开通大航海 GUARD_BUY
 func (c *Client) OnGuardBuy(f func(*message.GuardBuy)) {
 	c.eventHandlers.guardBuyHandlers = append(c.eventHandlers.guardBuyHandlers, f)
 }
 
-// OnLiveStart 开播 LIVE
 func (c *Client) OnLiveStart(f func(start *message.LiveStart)) {
 	c.eventHandlers.liveStartHandlers = append(c.eventHandlers.liveStartHandlers, f)
 }
 
-// OnLiveStop 关播 PREPARING
 func (c *Client) OnLiveStop(f func(start *message.LiveStop)) {
 	c.eventHandlers.liveStopHandlers = append(c.eventHandlers.liveStopHandlers, f)
 }
 
-// OnUserToast 旧版 USER_TOAST_MSG
+// OnUserToast USER_TOAST_MSG_V2
 func (c *Client) OnUserToast(f func(*message.UserToast)) {
 	c.eventHandlers.userToastHandlers = append(c.eventHandlers.userToastHandlers, f)
 }
 
-// OnUserToastV2 新版上舰提示 USER_TOAST_MSG_V2
-func (c *Client) OnUserToastV2(f func(*message.UserToastV2)) {
-	c.eventHandlers.userToastV2Handlers = append(c.eventHandlers.userToastV2Handlers, f)
-}
-
-// OnInteractWord 旧版 INTERACT_WORD（JSON）
+// OnInteractWord INTERACT_WORD_V2
 func (c *Client) OnInteractWord(f func(*message.InteractWord)) {
 	c.eventHandlers.interactWordHandlers = append(c.eventHandlers.interactWordHandlers, f)
 }
 
-// OnInteractWordV2 新版互动 INTERACT_WORD_V2（protobuf，含进房/关注/分享/点赞）
-func (c *Client) OnInteractWordV2(f func(*message.InteractWordV2)) {
-	c.eventHandlers.interactWordV2Handlers = append(c.eventHandlers.interactWordV2Handlers, f)
-}
-
-// OnLikeClick 点赞按钮 LIKE_INFO_V3_CLICK
-func (c *Client) OnLikeClick(f func(*message.LikeInfoV3Click)) {
-	c.eventHandlers.likeClickHandlers = append(c.eventHandlers.likeClickHandlers, f)
-}
-
-// Handle 处理一个包
 func (c *Client) Handle(p packet.Packet) {
 	switch p.Operation {
 	case packet.Notification:
 		cmd := parseCmd(p.Body)
 		sb := utils.BytesToString(p.Body)
-		// 新的弹幕 cmd 可能带参数，如 DANMU_MSG:4:0:2:2:2:0
 		if ind := strings.Index(cmd, ":"); ind >= 0 {
 			cmd = cmd[:ind]
 		}
-		// 自定义 handler 覆盖内置
 		if f, ok := (*c.customEventHandlers)[cmd]; ok {
 			go cover(func() { f(sb) })
 			return
@@ -213,34 +174,17 @@ func (c *Client) Handle(p packet.Packet) {
 			for _, fn := range c.eventHandlers.liveStopHandlers {
 				go cover(func() { fn(l) })
 			}
-		case "USER_TOAST_MSG":
+		case "USER_TOAST_MSG_V2":
 			u := new(message.UserToast)
 			u.Parse(p.Body)
 			for _, fn := range c.eventHandlers.userToastHandlers {
 				go cover(func() { fn(u) })
 			}
-		case "USER_TOAST_MSG_V2":
-			u := new(message.UserToastV2)
-			u.Parse(p.Body)
-			for _, fn := range c.eventHandlers.userToastV2Handlers {
-				go cover(func() { fn(u) })
-			}
-		case "INTERACT_WORD":
-			w := message.ParseInteractWordJSON(sb)
+		case "INTERACT_WORD_V2":
+			w := new(message.InteractWord)
+			w.Parse(p.Body)
 			for _, fn := range c.eventHandlers.interactWordHandlers {
 				go cover(func() { fn(w) })
-			}
-		case "INTERACT_WORD_V2":
-			w := new(message.InteractWordV2)
-			w.Parse(p.Body)
-			for _, fn := range c.eventHandlers.interactWordV2Handlers {
-				go cover(func() { fn(w) })
-			}
-		case "LIKE_INFO_V3_CLICK":
-			l := new(message.LikeInfoV3Click)
-			l.Parse(p.Body)
-			for _, fn := range c.eventHandlers.likeClickHandlers {
-				go cover(func() { fn(l) })
 			}
 		default:
 			if _, ok := knownCMDMap[cmd]; ok {
@@ -258,8 +202,7 @@ func (c *Client) Handle(p packet.Packet) {
 }
 
 func parseCmd(d []byte) string {
-	str := utils.BytesToString(d)
-	match := cmdReg.FindStringSubmatch(str)
+	match := cmdReg.FindStringSubmatch(utils.BytesToString(d))
 	if len(match) > 1 {
 		return match[1]
 	}
