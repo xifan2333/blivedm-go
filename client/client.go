@@ -63,10 +63,18 @@ func (c *Client) init() error {
 			log.Error(err)
 		}
 		c.Uid = uid
-		re := regexp.MustCompile("_uuid=(.+?);")
-		result := re.FindAllStringSubmatch(c.Cookie, -1)
-		if len(result) > 0 {
-			c.Buvid = result[0][1]
+		// auth packet buvid must match cookie buvid3 (python blivedm uses buvid3).
+		// fallback: _uuid for older cookie dumps.
+		c.Buvid = cookieValue(c.Cookie, "buvid3")
+		if c.Buvid == "" {
+			c.Buvid = cookieValue(c.Cookie, "_uuid")
+		}
+		if c.Buvid == "" {
+			// last resort: old regex on _uuid
+			re := regexp.MustCompile(`_uuid=([^;]+)`)
+			if m := re.FindStringSubmatch(c.Cookie); len(m) > 1 {
+				c.Buvid = m[1]
+			}
 		}
 	}
 	roomInfo, err := api.GetRoomInfo(c.RoomID)
@@ -192,6 +200,24 @@ func (c *Client) sendEnterPacket() error {
 	if err := c.conn.WriteMessage(websocket.BinaryMessage, pkt); err != nil {
 		return err
 	}
-	log.Debugf("send: EnterPacket")
+	log.Debugf("send: EnterPacket uid=%d buvid=%s room=%d", c.Uid, c.Buvid, c.RoomID)
 	return nil
+}
+
+// cookieValue returns the value of name from a Cookie header string.
+func cookieValue(cookie, name string) string {
+	for _, part := range strings.Split(cookie, ";") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		k, v, ok := strings.Cut(part, "=")
+		if !ok {
+			continue
+		}
+		if strings.TrimSpace(k) == name {
+			return strings.TrimSpace(v)
+		}
+	}
+	return ""
 }
