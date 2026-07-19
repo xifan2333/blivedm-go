@@ -11,13 +11,23 @@ go get github.com/xifan2333/blivedm-go
 
 ### 基础使用
 
-该库支持以下几种基本事件，并且支持监听自定义事件。
-- 弹幕
-- 醒目留言
-- 礼物
-- 上舰
-- 开播
-- USER_TOAST_MSG
+该库支持以下 web 直播间一等事件（对齐 [xfgryujk/blivedm](https://github.com/xfgryujk/blivedm) web BaseHandler 能力），并支持 `RegisterCustomEventHandler` 监听任意 CMD。
+
+| CMD | API |
+| --- | --- |
+| `DANMU_MSG` | `OnDanmaku` |
+| `SEND_GIFT` | `OnGift` |
+| `SUPER_CHAT_MESSAGE` | `OnSuperChat` |
+| `SUPER_CHAT_MESSAGE_DELETE` | `OnSuperChatDelete` |
+| `GUARD_BUY` | `OnGuardBuy` |
+| `USER_TOAST_MSG` | `OnUserToast` |
+| `USER_TOAST_MSG_V2` | `OnUserToastV2` |
+| `INTERACT_WORD` | `OnInteractWord`（旧 JSON） |
+| `INTERACT_WORD_V2` | `OnInteractWordV2`（protobuf，进房/关注/分享/点赞） |
+| `LIKE_INFO_V3_CLICK` | `OnLikeClick` |
+| `LIVE` / `PREPARING` | `OnLiveStart` / `OnLiveStop` |
+
+开放平台 `LIVE_OPEN_PLATFORM_*` 未做 typed model，请用自定义 handler。
 
 ```go
 package main
